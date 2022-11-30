@@ -1,92 +1,213 @@
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import javax.swing.*;
+import java.io.*;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashMap;
 
-public class ClientHandler implements Runnable{
+public class ClientHandler {
+    BufferedWriter writer;
+    BufferedReader reader;
+    Socket socket;
+    Server log;
+    String FILENAME = "user.csv";
 
-    // Creating a new ArrayList of ClientHandler objects.
-    public static ArrayList<ClientHandler> clientHandlers = new ArrayList<>();
-    //when client send msg -> we will loop this array and send msg to each client
-
-    private Socket socket; //socket to connect client and server 
-    private BufferedReader readData;
-    private BufferedWriter writeData;
-    private String clientName;
-
-    public ClientHandler(Socket socket) {
-        try{
-            this.socket = socket;
-            // 2 type: byte stream and character stream
-            // we use character strem -> send msg
-            this.writeData = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-            this.readData = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            this.clientName = readData.readLine(); // enter
-
-            // add client to array
-            clientHandlers.add(this);
-            broadcastMessage("SERVER: " + clientName + " has joined");
-        } catch (IOException e) {
-            closeEverything(socket, readData, writeData);
-        }
+    public Socket getSocket(){
+        return this.socket;
     }
 
-    private void closeEverything(Socket socket2, BufferedReader readData2, BufferedWriter writeData2) {
-        //close down connection
-        ClientOut();
-        try{
-            if(readData2 != null){
-                readData2.close();
-            }
-            if(writeData2 != null){
-                writeData2.close();
-            }
-            if(socket2 != null){
-                socket2.close();
-            }
-        } catch(IOException e){
-            e.printStackTrace();
-        }
-    }
+    public ClientHandler(Socket socket, Server log) throws IOException {
+        this.socket = socket;
+        this.log = log;
 
-    private void broadcastMessage(String string) {
-        for(ClientHandler clientHandler : clientHandlers){
-            try{
-                if (!clientHandler.clientName.equals(clientName)){
-                    clientHandler.writeData.write(string); // send msg to other
-                    clientHandler.writeData.newLine();
-                    clientHandler.writeData.flush();
+        InputStream is = socket.getInputStream();
+        reader = new BufferedReader(new InputStreamReader(is));
+
+        OutputStream os = socket.getOutputStream();
+        writer = new BufferedWriter(new OutputStreamWriter(os));
+
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    do {
+                        String receivedMessage;
+                        try {
+                            receivedMessage = reader.readLine();
+                            log.getText().append("Received: " + receivedMessage + '\n');
+                            String parseMess[] = receivedMessage.split(",");
+                            route(parseMess);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    } while (true);
+                } catch (Exception e) {
+                    System.out.print("Socket closed");
                 }
-            } catch (IOException e){
-                closeEverything(socket, readData, writeData);
-            }   
+            }
+        });
+        t.start();
+    }
+
+    public static String[] parseStringCSV(String csvStr) {
+        String[] res = null;
+        if (csvStr != null) {
+            res = csvStr.split(",");
+        }
+        return res;
+    }
+
+    public void writeAccount(String fname, String username, String password) {
+        String info = username + ',' + password + '\n';
+        try {
+            BufferedWriter writer = new BufferedWriter(new FileWriter(fname));
+            writer.write(info);
+            writer.flush();
+            writer.close();
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(log.getNotify(), e.getMessage());
         }
     }
 
-    public void ClientOut(){
-        clientHandlers.remove(this);
-        broadcastMessage("SERVER: " + clientName + " has left");
-    }
+    public void checkReg(String username, String password) {
+        try {
+            String line;
+            BufferedReader reader = new BufferedReader(new FileReader(FILENAME));
+            try {
+                while ((line = reader.readLine()) != null) {
+                    String[] res = parseStringCSV(line);
+                    if (username.equals(res[0])) {
+                        writer.write("reg,Account existed");
+                        writer.newLine();
+                        writer.flush();
+                        return;
+                    }
+                }
 
-    @Override
-    public void run() {
-        // TODO Auto-generated method stub
-        // run on a separate thread
-     
-        String ClientMsg;
-        while(socket.isConnected()){
-            try{
-                ClientMsg = readData.readLine();
-                broadcastMessage(ClientMsg);
+                writeAccount(FILENAME, username, password);
+                writer.write("reg,Registered successfully!");
+                writer.newLine();
+                writer.flush();
             } catch (IOException e) {
-                closeEverything(socket, readData, writeData);
-                break; // client disconnect
+                e.printStackTrace();
             }
-        }     
-    }
-    
 
+        } catch (FileNotFoundException e) {
+            JOptionPane.showMessageDialog(log.getNotify(), "File not found!");
+        }
+    }
+
+    public void checkLogin(String username, String password) {
+        try {
+            String line;
+            BufferedReader reader = new BufferedReader(new FileReader(FILENAME));
+            try {
+                while ((line = reader.readLine()) != null) {
+                    String[] res = parseStringCSV(line);
+                    if (username.equals(res[0]) && password.equals(res[1])) {
+                        log.getOnline().put(username,this);
+                        String onlStr = getOnl();
+                        writer.write("login,true,Logged in successfully!,"+onlStr);
+                        writer.newLine();
+                        writer.flush();
+                        return;
+                    }
+                }
+                writer.write("login,false,Invalid username or password!");
+                writer.newLine();
+                writer.flush();
+                return;
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        } catch (FileNotFoundException e) {
+            JOptionPane.showMessageDialog(log.getNotify(), "File not found!");
+        }
+    }
+
+    public String getOnl(){
+        String res = "";
+        HashMap<String, ClientHandler> onl = log.getOnline();
+        ArrayList<String> onlName = new ArrayList<>();
+        for(String i: onl.keySet()){
+            onlName.add(i);
+        }
+        for(int i = 0;i<onlName.size()-1;i++){
+            res+=onlName.get(i)+"`";
+        }
+        res+=onlName.get(onlName.size()-1);
+        return res;
+    }
+
+    public void route(String[] parseMess) throws IOException {
+        switch(parseMess[0]){
+            case "reg":
+                checkReg(parseMess[1],parseMess[2]);
+                break;
+            case "login":
+                checkLogin(parseMess[1],parseMess[2]);
+                break;
+            case "refresh":
+                String onlList = getOnl();
+                send("refresh,"+onlList);
+                break;
+            case "chat":
+                String sender = parseMess[1];
+                String receiver = parseMess[2];
+                String msg = parseMess[3];
+                ClientHandler receive = log.getOnline().get(receiver);
+                receive.send("chat,"+sender+","+msg);
+                break;
+            case "info":
+                String from = parseMess[1];
+                String to = parseMess[2];
+                String name = parseMess[3];
+                String length = parseMess[4];
+
+                ClientHandler rcv = log.getOnline().get(to);
+                rcv.send("info,"+from+","+name+","+length);
+                break;
+            case "accept":
+                ClientHandler recv = log.getOnline().get(parseMess[2]);
+                recv.send("accept,"+parseMess[1]);
+                break;
+            case "send-file":
+                processFile(parseMess[1],parseMess[2],parseMess[3]);
+                break;
+            case "logout":
+                log.getOnline().remove(parseMess[1]);
+                socket.close();
+                break;
+        }
+    }
+
+    public void processFile(String receiver, String fileName, String fileSize) throws IOException {
+        ClientHandler receive = log.getOnline().get(receiver);
+        receive.send("send-file,"+fileName+","+fileSize);
+        log.getText().append(fileName+"@"+fileSize+"\n");
+
+        DataInputStream in = new DataInputStream(socket.getInputStream());
+        DataOutputStream out = new DataOutputStream(receive.getSocket().getOutputStream());
+
+        byte[] buffer = new byte[4096];
+
+        int count;
+        int remain = Integer.parseInt(fileSize);
+
+        while (remain>0) {
+            count = in.read(buffer,0,Math.min(remain,4096));
+            remain -= count;
+            out.write(buffer,0,count);
+            log.getText().append("Received: "+remain+" byte\n");
+        }
+        out.flush();
+        in.skip(in.available());
+    }
+
+    public void send(String sentMessage) throws IOException {
+        writer.write(sentMessage);
+        writer.newLine();
+        writer.flush();
+    }
 }
