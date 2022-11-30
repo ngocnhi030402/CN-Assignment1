@@ -1,59 +1,111 @@
+import javax.swing.*;
+import javax.swing.border.CompoundBorder;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder;
+import java.awt.*;
+import java.io.*;
+import java.net.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.io.*;
+import java.util.HashMap;
 import java.io.IOException;  
-import java.net.*; 
 
-public class Server {
-    private ServerSocket serverSocket;
 
-    // alt + ins constructor
-    public Server(ServerSocket serverSocket) {
-        this.serverSocket = serverSocket;
+public class    Server {
+    JTextArea text = new JTextArea(100, 50);
+    JScrollPane log;
+    JPanel notify = new JPanel();
+    BufferedWriter writer;
+    BufferedReader reader;
+    HashMap<String,ClientHandler> onl = new HashMap<>();
+
+    public HashMap<String, ClientHandler> getOnline() {
+        return onl;
     }
 
-    // keep server running
-    public void startServer() {
+    
+    public JPanel getNotify(){
+        return this.notify;
+    }
+
+    public JTextArea getText(){
+        return this.text;
+    }
+
+    private class CreateClient implements Runnable{
+        Socket ss;
+        Server log;
+
+        public CreateClient(Socket ss, Server log) {
+            this.ss = ss;
+            this.log = log;
+        }
+
+        // @Override
+        public void run() {
+            try {
+                new ClientHandler(ss, log);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    //connect server
+    public void connect() {
         try {
-            while (!serverSocket.isClosed()) {
-                // waiting client connected
-                Socket socket = serverSocket.accept();
-                System.out.println("A new client has connected");
+            ServerSocket socket = new ServerSocket(3200);
+            do {
+                // if no client connected
+                text.append("Waiting for a client... \n");
+                // if client connected
+                Socket serverSocket = socket.accept(); //synchronous
+                text.append("A new client is coming!\n");
 
-                // making communication with Client
-               ClientHandler clientHandler = new ClientHandler(socket);
-                // we didnt spawn a new thread to hanlde the connection
-                // with each new client, means 1 client at a time
-
-                // threads share a memory space
+                // create thread -> thread share memory 
                 // when launch an executable, it is running in a thread within a process
-               Thread thread = new Thread(clientHandler);
-               thread.start();
-            }
+                Thread thread = new Thread(new CreateClient(serverSocket, this));
+                thread.start();
+
+            } while (true);
         } catch (IOException e) {
 
+            // text.append("There are some error\n");
+
+        } finally {
+            try {
+                writer.close();
+                reader.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
-    // public void printStackTrace(PrintStream s);
+    public Server() {
+        JFrame frame = new JFrame("Server"); // set title
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // close -> exit program
+        frame.setPreferredSize(new Dimension(500, 400));
+        frame.setLayout(new BorderLayout());
+        
+        log = setJPanel();
+        frame.add(log);
+        frame.pack();
+        
+        frame.setVisible(true);
 
-    // to avoid nested try catch
-    public void closeServerSocket() {
-        // check not null
-        try {
-            if (serverSocket != null) {
-                serverSocket.close();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        connect();
     }
 
-    // main
-    public static void main(String[] args) throws IOException {
-        ServerSocket serverSocket = new ServerSocket(1234);
-        Server server = new Server(serverSocket);
-        server.startServer();
+    public JScrollPane setJPanel() {
+        text.setEditable(false);
+        JScrollPane log = new JScrollPane(text);
+        return log;
     }
 
+
+
+    public static void main(String args[]) {
+        new Server();
+    }
 }
