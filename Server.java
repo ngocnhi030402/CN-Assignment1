@@ -14,7 +14,6 @@ public class Server {
 
     // keep server running
     public void startServer() {
-
         try {
             while (!serverSocket.isClosed()) {
                 // waiting client connected
