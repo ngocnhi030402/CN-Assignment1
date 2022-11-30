@@ -49,7 +49,7 @@ public class LoginUI extends JFrame implements ActionListener {
             text = "login," + userText + ',' + pwdText;
             Client.getObject().setUsername(userText);
         } else {
-            text = "reg," + userText + ',' + pwdText;
+            text = "register," + userText + ',' + pwdText;
         }
 
         try {

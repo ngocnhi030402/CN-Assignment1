@@ -25,8 +25,6 @@ public class Client
     private String onl="";
     private String username;
     File sendingFile = new File("");
-    HashMap<String,ChatBoxUI> chatBoxList = new HashMap<>();
-    ChatBoxUI chatbox;
 
     private Client() {
     }
@@ -43,9 +41,6 @@ public class Client
         return this.bw;
     }
 
-    public HashMap<String,ChatBoxUI> getChatBox(){
-        return this.chatBoxList;
-    }
 
     public String[] parseString(String csvStr) {
         String[] res = null;
@@ -109,15 +104,6 @@ public class Client
             case "refresh":
                 onl=res[1];
                 new ChatBoardUI();
-                break;
-            case "chat":
-                String sender=res[1];
-                if(chatBoxList.get(sender) == null){
-                    chatbox = new ChatBoxUI(sender);
-                    chatBoxList.put(sender, chatbox);
-                }
-                String msg=""+sender+": "+res[2]+"\n";
-                chatBoxList.get(sender).getTextArea().append(msg);
                 break;
             case "info":
                 String fileName = res[2];

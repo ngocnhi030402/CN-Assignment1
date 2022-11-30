@@ -100,12 +100,12 @@ public class ChatBoardUI extends JFrame implements ActionListener {
     }
 
     MouseListener mouseListener = new MouseAdapter() {
-        public void mouseClicked(MouseEvent e) {
-            if (e.getClickCount() == 2) {
-                String name = (String) online.getSelectedValue();
-                ChatBoxUI chatbox = new ChatBoxUI(name);
-                Client.getObject().getChatBox().put(name,chatbox);
-            }
-        }
+//        public void mouseClicked(MouseEvent e) {
+//            if (e.getClickCount() == 2) {
+//                String name = (String) online.getSelectedValue();
+//                ChatBoxUI chatbox = new ChatBoxUI(name);
+//                Client.getObject().getChatBox().put(name,chatbox);
+//            }
+//        }
     };
 }

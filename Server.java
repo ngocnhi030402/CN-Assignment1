@@ -11,7 +11,7 @@ import java.util.HashMap;
 import java.io.IOException;  
 
 
-public class Server {
+public class    Server {
     JTextArea text = new JTextArea(100, 50);
     JScrollPane log;
     JPanel notify = new JPanel();
@@ -99,9 +99,7 @@ public class Server {
 
     public JScrollPane setJPanel() {
         text.setEditable(false);
-        // text.setBorder(new EmptyBorder(4, 4, 4, 4));
         JScrollPane log = new JScrollPane(text);
-        // log.setBorder(new CompoundBorder(new TitledBorder("Server Logs"), new EmptyBorder(10, 10, 10, 10)));
         return log;
     }
 
